@@ -65,5 +65,5 @@ if test "$PHP_JLUNAR" != "no"; then
   PHP_SUBST(JLUNAR_SHARED_LIBADD)
   AC_DEFINE(HAVE_JLUNAR, 1, [ ])
 
-  PHP_NEW_EXTENSION(jlunar, php_jlunar.c jlunar.cpp jlunarJQ.cpp, $ext_shared)
+  PHP_NEW_EXTENSION(jlunar, php_jlunar.cpp jlunar.cpp jlunarJQ.cpp, $ext_shared)
 fi
