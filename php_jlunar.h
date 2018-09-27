@@ -1,6 +1,6 @@
 /*
   +----------------------------------------------------------------------+
-  | PHP Version 5                                                        |
+  | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
   | Copyright (c) 1997-2013 The PHP Group                                |
   +----------------------------------------------------------------------+
@@ -11,7 +11,7 @@
   | If you did not receive a copy of the PHP license and are unable to   |
   | obtain it through the world-wide-web, please send a note to          |
   | license@php.net so we can mail you a copy immediately.               |
-    |  农历扩展函数                                                        |
+  |  农历扩展函数                                                          |
   +----------------------------------------------------------------------+
   | Author:  陈逸少（jmchxy@gmail.com）                                    |
   +----------------------------------------------------------------------+

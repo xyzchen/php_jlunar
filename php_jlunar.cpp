@@ -1,6 +1,6 @@
 /*
   +----------------------------------------------------------------------+
-  | PHP Version 5                                                        |
+  | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
   | Copyright (c) 1997-2013 The PHP Group                                |
   +----------------------------------------------------------------------+
@@ -11,7 +11,7 @@
   | If you did not receive a copy of the PHP license and are unable to   |
   | obtain it through the world-wide-web, please send a note to          |
   | license@php.net so we can mail you a copy immediately.               |
-  |  农历扩展函数                                                        |
+  |  农历扩展函数                                                          |
   +----------------------------------------------------------------------+
   | Author:  陈逸少（jmchxy@gmail.com）                                    |
   +----------------------------------------------------------------------+
@@ -23,10 +23,12 @@
 #include "config.h"
 #endif
 
+extern "C"{
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include "php_jlunar.h"
+}
 
 //农历函数定义
 #include "jlunar.h"
@@ -174,6 +176,7 @@ PHP_MINFO_FUNCTION(jlunar)
 	*/
 }
 
+//////////////////////////////////////////////////////////
 /**
  *  下面的函数为模块真正要实现的功能
  *
@@ -181,56 +184,57 @@ PHP_MINFO_FUNCTION(jlunar)
 //把LUNARDATE对象转换到PHP关联数组
 void lunar_to_array(zval* new_array, const LUNARDATE*  lunar_date);
 
+//------------------------------------------------------
 // 返回今天日期的字符串（无参数）
+//------------------------------------------------------
 PHP_FUNCTION(lunar_get_todaystring)
 {
-	//设置返回值
-	char *strg;
-	int  len;
-	
-    time_t rawtime   = time(NULL);
-	struct tm * ptm = gmtime ( &rawtime );
+	//获取当前时间
+    time_t rawtime  = time(NULL);
+	struct tm * ptm = gmtime( &rawtime );
 
+	//转换成农历时间
 	LUNARDATE lunar_date;
 	memset(&lunar_date, 0, sizeof(lunar_date));
 	lunar_date.wYear  = ptm->tm_year + 1900;
 	lunar_date.wMonth = ptm->tm_mon  + 1;
 	lunar_date.wDay   = ptm->tm_mday;
 	cjxGetLunarDate(&lunar_date);
-	//处理数据
-	len = spprintf(&strg, 0, "%d年%d月%d日 农历%s(%s)年%s月%s 星期%s", 
+
+	//处理成php数据返回
+	zend_string * retstr = strpprintf(0,
+		"%d年%d月%d日 农历%s(%s)年%s月%s 星期%s", 
 		lunar_date.wYear, lunar_date.wMonth, lunar_date.wDay,
-		lunar_date.szYearGanZhi, lunar_date.szYearShengXiao, lunar_date.szLunarMonth, lunar_date.szLunarDay, cjxGetWeekName(lunar_date.wWeekDay));
-	
+		lunar_date.szYearGanZhi, lunar_date.szYearShengXiao, 
+		lunar_date.szLunarMonth, lunar_date.szLunarDay, 
+		cjxGetWeekName(lunar_date.wWeekDay));
+
 	//返回结果
-	RETURN_STRINGL(strg, len, 0);
+	RETURN_STR(retstr);
 }
 
+//------------------------------------------------------
 // 返回今天的日期（无参数）
+//------------------------------------------------------
 PHP_FUNCTION(lunar_get_today)
 {
-	//临时变量
+	//获取当前日期
+	time_t rawtime  = time(NULL);
+	struct tm * ptm = gmtime ( &rawtime );
+	//转换成农历格式
 	LUNARDATE  lunardate;
-	time_t     rawtime;
-	struct tm * ptm;
-	
-	// 返回值使用
-	zval*  new_array;			//声明php变量new_array，申请并初始化一个zval容器
-	MAKE_STD_ZVAL(new_array);	//设置变量的类型和内容,将名为 "new_array" 变量引入符号表
-	array_init(new_array);      //初始化hash表，并赋给数组
-
-	rawtime   = time(NULL);
-	ptm = gmtime ( &rawtime );
-
 	memset(&lunardate, 0, sizeof(lunardate));
 	lunardate.wYear  = ptm->tm_year + 1900;
 	lunardate.wMonth = ptm->tm_mon  + 1;
 	lunardate.wDay   = ptm->tm_mday;
 	cjxGetLunarDate(&lunardate);
-	//使用关联数组
-	lunar_to_array(new_array, &lunardate);
-	//返回结果
-	*return_value = *new_array;	
+	//填充关联数组并返回
+	zval   array;			//声明php变量array，申请并初始化一个zval
+	ZVAL_NEW_ARR(&array);	//分配数组
+	array_init(&array);  	//初始化hash表，并赋给数组
+	lunar_to_array(&array, &lunardate); //设置数组字段
+	//返回数组结果
+    RETURN_ARR(Z_ARR(array));
 }
 
 //------------------------------------------------------
@@ -242,7 +246,7 @@ PHP_FUNCTION(lunar_get_today)
 PHP_FUNCTION(lunar_get_offset_solardays)
 {
 	//接收参数
-	long year, month, day;
+	zend_long year, month, day;
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() != 3)
 	{
@@ -264,15 +268,7 @@ PHP_FUNCTION(lunar_get_offset_solardays)
 PHP_FUNCTION(lunar_get_date)
 {
 	//接收参数
-	long days   = 0;
-
-	//临时变量，计算用
-	LUNARDATE  lunar_date;
-
-	// 返回值使用
-	zval*  new_array;			//声明php变量new_array，申请并初始化一个zval容器
-	MAKE_STD_ZVAL(new_array);	//设置变量的类型和内容,将名为 "new_array" 变量引入符号表
-	array_init(new_array);      //初始化hash表，并赋给数组
+	zend_long days   = 0;
 
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() != 1)
@@ -285,15 +281,17 @@ PHP_FUNCTION(lunar_get_date)
 		return;
 	}
 	//计算到农历的时间
+	LUNARDATE  lunar_date;
 	cjxGetDate(days, &lunar_date);
-	//----------------------------------------------
-	//把结果加入到数组并返回
-	//----------------------------------------------
-	//使用关联数组
-	lunar_to_array(new_array, &lunar_date);
 
-	//返回结果
-	*return_value = *new_array;	//此处return_value是返回参数，根据宏定义展开可以看到
+	//填充关联数组并返回
+	zval   new_array;			//声明php变量new_array，申请并初始化一个zval
+	ZVAL_NEW_ARR(&new_array);	//分配数组
+	array_init(&new_array);  	//初始化hash表，并赋给数组
+	lunar_to_array(&new_array, &lunar_date); //设置数组字段
+
+	//返回数组结果
+    RETURN_ARR(Z_ARR(new_array));
 }
 
 //-----------------------------------
@@ -303,15 +301,7 @@ PHP_FUNCTION(lunar_get_date)
 PHP_FUNCTION(lunar_get_lunardate)
 {
 	//接收参数
-	long year, month, day;
-
-	//临时变量，计算用
-	LUNARDATE  lunar_date;
-
-	// 返回值使用
-	zval*  new_array;			//声明php变量new_array，申请并初始化一个zval容器
-	MAKE_STD_ZVAL(new_array);	//设置变量的类型和内容,将名为 "new_array" 变量引入符号表
-	array_init(new_array);      //初始化hash表，并赋给数组
+	zend_long year, month, day;
 
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() != 3)
@@ -324,14 +314,20 @@ PHP_FUNCTION(lunar_get_lunardate)
 		return;
 	}
 	//计算到农历的时间
+	LUNARDATE  lunar_date;
 	lunar_date.wYear  = (WORD)year;
 	lunar_date.wMonth = (WORD)month;
 	lunar_date.wDay   = (WORD)day;
 	cjxGetLunarDate(&lunar_date);
-	//使用关联数组
-	lunar_to_array(new_array, &lunar_date);
-	//返回结果
-	*return_value = *new_array;
+
+	//填充关联数组并返回
+	zval   new_array;			//声明php变量new_array，申请并初始化一个zval
+	ZVAL_NEW_ARR(&new_array);	//分配数组
+	array_init(&new_array);  	//初始化hash表，并赋给数组
+	lunar_to_array(&new_array, &lunar_date); //设置数组字段
+
+	//返回数组结果
+    RETURN_ARR(Z_ARR(new_array));
 }
 
 //-----------------------------------
@@ -341,15 +337,7 @@ PHP_FUNCTION(lunar_get_lunardate)
 PHP_FUNCTION(lunar_get_solardate)
 {
 	//接收参数
-	long year, month, day, isleap=0;
-
-	//临时变量，计算用
-	LUNARDATE  lunar_date;
-
-	// 返回值使用
-	zval*  new_array;			//声明php变量new_array，申请并初始化一个zval容器
-	MAKE_STD_ZVAL(new_array);	//设置变量的类型和内容,将名为 "new_array" 变量引入符号表
-	array_init(new_array);      //初始化hash表，并赋给数组
+	zend_long year, month, day, isleap=0;
 
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() < 3)
@@ -372,24 +360,31 @@ PHP_FUNCTION(lunar_get_solardate)
 		}
 	}
 	
-	//计算到农历的时间
+	//计算到公历的时间
+	LUNARDATE  lunar_date;
 	lunar_date.wLunarYear  = (WORD)year;
 	lunar_date.wLunarMonth = (WORD)month;
 	lunar_date.wLunarDay   = (WORD)day;
 	lunar_date.wIsLeapMonth= (WORD)isleap;
 	cjxGetSolarDate(&lunar_date);
-	//使用关联数组
-	lunar_to_array(new_array, &lunar_date);
-	//返回结果
-	*return_value = *new_array;
+
+	//填充关联数组并返回
+	zval   new_array;			//声明php变量new_array，申请并初始化一个zval
+	ZVAL_NEW_ARR(&new_array);	//分配数组
+	array_init(&new_array);  	//初始化hash表，并赋给数组
+	lunar_to_array(&new_array, &lunar_date); //设置数组字段
+
+	//返回数组结果
+    RETURN_ARR(Z_ARR(new_array));
 }
+
 //-------------------------------------
 // 返回指定年/月/日的星期数，0为星期日
 //-------------------------------------
 PHP_FUNCTION(lunar_get_weekday)
 {
 	//接收参数
-	long year, month, day;
+	zend_long year, month, day;
 
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() != 3)
@@ -405,11 +400,13 @@ PHP_FUNCTION(lunar_get_weekday)
 	RETURN_LONG(cjxGetWeekday(year, month, day));
 }
 
+//-------------------------------------
 // 计算公历某月的天数(参数，年/月)
+//-------------------------------------
 PHP_FUNCTION(lunar_get_solar_daysofmonth)
 {
 	//接收参数
-	long year, month;
+	zend_long year, month;
 
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() != 2)
@@ -425,11 +422,13 @@ PHP_FUNCTION(lunar_get_solar_daysofmonth)
 	RETURN_LONG(cjxGetSolarMonthDays(year, month));
 }
 
+//-------------------------------------
 // 计算农历某月的天数(参数，年/月)
+//-------------------------------------
 PHP_FUNCTION(lunar_get_lunar_daysofmonth)
 {
 	//接收参数
-	long year, month;
+	zend_long year, month;
 
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() != 2)
@@ -445,11 +444,13 @@ PHP_FUNCTION(lunar_get_lunar_daysofmonth)
 	RETURN_LONG(cjxGetLunarMonthDays(year, month));
 }
 
+//-------------------------------------
 // 计算农历某年的天数(参数，年)
+//-------------------------------------
 PHP_FUNCTION(lunar_get_lunar_daysofyear)
 {
 	//接收参数
-	long year;
+	zend_long year;
 
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() != 1)
@@ -465,11 +466,13 @@ PHP_FUNCTION(lunar_get_lunar_daysofyear)
 	RETURN_LONG(cjxGetLunaYearDays(year));
 }
 
+//-------------------------------------
 // 计算农历某年闰几月，没有闰月为0
+//-------------------------------------
 PHP_FUNCTION(lunar_get_leapmonth)
 {
 	//接收参数
-	long year;
+	zend_long year;
 
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() != 1)
@@ -484,6 +487,7 @@ PHP_FUNCTION(lunar_get_leapmonth)
 	//返回结果
 	RETURN_LONG(cjxLunarLeapMonth(year));
 }
+
 //-----------------------------------------------------
 // 24节气结算函数：
 //    计算 y 年的第n个节气几号(从0小寒起算)
@@ -492,7 +496,7 @@ PHP_FUNCTION(lunar_get_leapmonth)
 PHP_FUNCTION(lunar_get_term_yn)
 {
 	//接收参数
-	long year, n;
+	zend_long year, n;
 
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() != 2)
@@ -507,6 +511,7 @@ PHP_FUNCTION(lunar_get_term_yn)
 	//返回结果
 	RETURN_LONG(cjxGetTermYN(year, n));
 }
+
 //-----------------------------------
 // 返回农历某年春节的日期(月,日)
 //   参数：农历年
@@ -515,12 +520,7 @@ PHP_FUNCTION(lunar_get_term_yn)
 PHP_FUNCTION(lunar_get_spring)
 {
 	//接收参数
-	long year = 1900;
-
-	// 返回值使用
-	zval*  new_array;			//声明php变量new_array，申请并初始化一个zval容器
-	MAKE_STD_ZVAL(new_array);	//设置变量的类型和内容,将名为 "new_array" 变量引入符号表
-	array_init(new_array);      //初始化hash表，并赋给数组
+	zend_long year = 1900;
 
 	//检查参数，抛出异常
 	if(ZEND_NUM_ARGS() != 1)
@@ -532,16 +532,24 @@ PHP_FUNCTION(lunar_get_spring)
 	{
 		return;
 	}
+
 	//计算春节日期并返回数组
-	add_index_long(new_array, 0, cjxSpringMonth(year));
-    add_index_long(new_array, 1, cjxSpringDay(year));
-	//返回结果
-	*return_value = *new_array;
+	zval   new_array;			//声明php变量new_array，申请并初始化一个zval
+	ZVAL_NEW_ARR(&new_array);	//分配数组
+	array_init(&new_array);  	//初始化hash表，并赋给数组
+	//设置数组数值
+	add_index_long(&new_array, 0, cjxSpringMonth(year));
+    add_index_long(&new_array, 1, cjxSpringDay(year));
+
+	//返回数组结果
+    RETURN_ARR(Z_ARR(new_array));
 }
 
 /////////////////////////////////////////////////////////////////////
+//-----------------------------------
 //定义一个帮助函数，
 //把LUNARDATE对象转换成PHP关联数组
+//-----------------------------------
 void lunar_to_array(zval* new_array, const LUNARDATE*  lunar_date)
 {
 	//公历：年，月，日，星期
@@ -556,14 +564,3 @@ void lunar_to_array(zval* new_array, const LUNARDATE*  lunar_date)
 	add_assoc_long(new_array, "lunar_isleap", lunar_date->wIsLeapMonth);
 }
 /* }}} */
-
-
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */
