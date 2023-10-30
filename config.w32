@@ -1,0 +1,7 @@
+ARG_ENABLE('jlunar', 'jlunar support', 'no');
+
+if (PHP_JLUNAR != 'no') {
+	AC_DEFINE('HAVE_JLUNAR', 1, 'jlunar support enabled');
+
+	EXTENSION('jlunar', 'jlunar.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+}
