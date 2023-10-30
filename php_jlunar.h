@@ -56,6 +56,8 @@ PHP_FUNCTION(lunar_get_weekday);
 PHP_FUNCTION(lunar_get_solar_daysofmonth);
 // 计算农历某月的天数(参数，农历年/月)
 PHP_FUNCTION(lunar_get_lunar_daysofmonth);
+// 计算公历某年的天数(参数，公历年)
+PHP_FUNCTION(lunar_get_solar_daysofyear);
 // 计算农历某年的天数(参数，农历年)
 PHP_FUNCTION(lunar_get_lunar_daysofyear);
 // 计算农历某年闰几月，没有闰月为0

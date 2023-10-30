@@ -64,12 +64,15 @@ const zend_function_entry jlunar_functions[] = {
 	/* 某年、 某月 的天数*/
 	PHP_FE(lunar_get_solar_daysofmonth,	NULL)
 	PHP_FE(lunar_get_lunar_daysofmonth,	NULL)
+	PHP_FE(lunar_get_solar_daysofyear,	NULL)
 	PHP_FE(lunar_get_lunar_daysofyear,	NULL)
 
 	/* 春节、24节气、星期数 */
 	PHP_FE(lunar_get_spring,	NULL)
 	PHP_FE(lunar_get_term_yn,	NULL)
 	PHP_FE(lunar_get_weekday,	NULL)
+	/* 获取农历某年闰几月，没有闰月为0 */
+	PHP_FE(lunar_get_leapmonth,	NULL)
 	
 	PHP_FE_END	/* Must be the last line in jlunar_functions[] */
 };
@@ -190,7 +193,7 @@ void lunar_to_array(zval* new_array, const LUNARDATE*  lunar_date);
 PHP_FUNCTION(lunar_get_todaystring)
 {
 	//获取当前时间
-    time_t rawtime  = time(NULL);
+	time_t rawtime  = time(NULL);
 	struct tm * ptm = gmtime( &rawtime );
 
 	//转换成农历时间
@@ -234,7 +237,7 @@ PHP_FUNCTION(lunar_get_today)
 	array_init(&array);  	//初始化hash表，并赋给数组
 	lunar_to_array(&array, &lunardate); //设置数组字段
 	//返回数组结果
-    RETURN_ARR(Z_ARR(array));
+	RETURN_ARR(Z_ARR(array));
 }
 
 //------------------------------------------------------
@@ -291,7 +294,7 @@ PHP_FUNCTION(lunar_get_date)
 	lunar_to_array(&new_array, &lunar_date); //设置数组字段
 
 	//返回数组结果
-    RETURN_ARR(Z_ARR(new_array));
+	RETURN_ARR(Z_ARR(new_array));
 }
 
 //-----------------------------------
@@ -375,7 +378,7 @@ PHP_FUNCTION(lunar_get_solardate)
 	lunar_to_array(&new_array, &lunar_date); //设置数组字段
 
 	//返回数组结果
-    RETURN_ARR(Z_ARR(new_array));
+	RETURN_ARR(Z_ARR(new_array));
 }
 
 //-------------------------------------
@@ -442,6 +445,28 @@ PHP_FUNCTION(lunar_get_lunar_daysofmonth)
 	}
 	//返回结果
 	RETURN_LONG(cjxGetLunarMonthDays(year, month));
+}
+
+//-------------------------------------
+// 计算公历某年的天数(参数，年)
+//-------------------------------------
+PHP_FUNCTION(lunar_get_solar_daysofyear)
+{
+	//接收参数
+	zend_long year;
+
+	//检查参数，抛出异常
+	if(ZEND_NUM_ARGS() != 1)
+	{
+		WRONG_PARAM_COUNT;
+	}	
+	//解析参数
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &year) == FAILURE)
+	{
+		return;
+	}
+	//返回结果
+	RETURN_LONG(cjxGetSolarYearDays(year));
 }
 
 //-------------------------------------
@@ -539,10 +564,10 @@ PHP_FUNCTION(lunar_get_spring)
 	array_init(&new_array);  	//初始化hash表，并赋给数组
 	//设置数组数值
 	add_index_long(&new_array, 0, cjxSpringMonth(year));
-    add_index_long(&new_array, 1, cjxSpringDay(year));
+	add_index_long(&new_array, 1, cjxSpringDay(year));
 
 	//返回数组结果
-    RETURN_ARR(Z_ARR(new_array));
+	RETURN_ARR(Z_ARR(new_array));
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -554,7 +579,7 @@ void lunar_to_array(zval* new_array, const LUNARDATE*  lunar_date)
 {
 	//公历：年，月，日，星期
 	add_assoc_long(new_array, "year", lunar_date->wYear);
-    add_assoc_long(new_array, "month", lunar_date->wMonth);
+	add_assoc_long(new_array, "month", lunar_date->wMonth);
 	add_assoc_long(new_array, "day",    lunar_date->wDay);
 	add_assoc_long(new_array, "weekday", lunar_date->wWeekDay);
 	//农历年月日，是否闰月
